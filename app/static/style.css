@@ -1,59 +1,137 @@
-* { box-sizing: border-box; }
-body {
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #0f1220;
-  color: #e6e6f0;
-  margin: 0;
-  padding: 2rem;
+:root {
+  --fundo: #E9EEF3;
+  --tinta: #12263F;
+  --tinta-suave: #4A5A6D;
+  --papel: #FFFFFF;
+  --linha: #CFD9E3;
+  --ambar: #F2A900;
+  --azul: #1F4E8C;
+  --fonte-titulo: "Bricolage Grotesque", "Segoe UI", sans-serif;
+  --fonte-texto: "Public Sans", "Segoe UI", sans-serif;
 }
-header h1 { margin-bottom: 0.2rem; }
-.subtitle { color: #9a9ac0; margin-top: 0; }
 
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: var(--fonte-texto);
+  line-height: 1.5;
+}
+
+/* Faixa do topo */
+header {
+  background: var(--tinta);
+  color: #fff;
+  padding: 2.5rem 1.5rem 3.5rem;
+}
+header h1,
+header .subtitle {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+header h1 {
+  font-family: var(--fonte-titulo);
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-top: 0;
+  margin-bottom: 0.6rem;
+}
+.subtitle {
+  color: #B9C7D8;
+  margin-top: 0;
+  max-width: 1100px;
+  font-size: 0.95rem;
+}
+
+/* Cartões */
 .cards {
+  max-width: 1100px;
+  margin: -1.8rem auto 1.5rem;
+  padding: 0 1.5rem;
   display: flex;
   gap: 1rem;
-  margin: 1.5rem 0;
   flex-wrap: wrap;
 }
 .card {
-  background: #1a1e33;
-  border: 1px solid #2c2f52;
+  background: var(--papel);
+  border: 1px solid var(--linha);
   border-radius: 12px;
-  padding: 1rem 1.5rem;
-  min-width: 180px;
+  padding: 1.1rem 1.4rem;
+  min-width: 210px;
   display: flex;
   flex-direction: column;
 }
-.card .label { color: #9a9ac0; font-size: 0.85rem; }
-.card .value { font-size: 1.8rem; font-weight: 700; color: #a5b4fc; }
-.card .value.small { font-size: 1rem; }
-.card .unit { font-size: 1rem; font-weight: 500; color: #9a9ac0; margin-left: 0.3rem; }
-.card .meta { font-size: 0.8rem; color: #6b6b91; margin-top: 0.3rem; }
-.card.muted .value { color: #cbd5e1; }
-.up { color: #4ade80; }
-.down { color: #f87171; }
-
-.chart-container, .table-container {
-  background: #1a1e33;
-  border: 1px solid #2c2f52;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+.card .label { color: var(--tinta-suave); font-size: 0.9rem; font-weight: 500; }
+.card .value {
+  font-family: var(--fonte-titulo);
+  font-weight: 800;
+  font-size: 2rem;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
+.card .unit { font-size: 1rem; font-weight: 600; color: var(--tinta-suave); margin-left: 0.2rem; }
+.card .meta { font-size: 0.85rem; color: var(--tinta-suave); margin-top: 0.3rem; }
+.card.muted .value { font-size: 1.6rem; color: var(--tinta-suave); }
 
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #2c2f52; }
-th { color: #9a9ac0; font-weight: 600; }
+/* O cartão do indicador principal é o destaque da página */
+.card:first-child {
+  background: var(--ambar);
+  border-color: var(--ambar);
+  min-width: 300px;
+}
+.card:first-child .label,
+.card:first-child .meta,
+.card:first-child .unit { color: var(--tinta); }
+.card:first-child .value { font-size: 3.4rem; }
 
-footer { color: #6b6b91; text-align: center; margin-top: 2rem; }
-footer a { color: #a5b4fc; }
+/* Variação: verde = melhorou, vermelho = piorou */
+.up { color: #1E7B4F; font-weight: 600; }
+.down { color: #B3261E; font-weight: 600; }
+.card:first-child .up,
+.card:first-child .down {
+  background: var(--tinta);
+  padding: 0.05rem 0.45rem;
+  border-radius: 4px;
+}
+.card:first-child .up { color: #7BE0A6; }
+.card:first-child .down { color: #FF9A93; }
 
+/* Gráficos */
 .charts-grid {
+  max-width: 1100px;
+  margin: 0 auto 1.5rem;
+  padding: 0 1.5rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
   gap: 1.5rem;
 }
+.chart-container {
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-top: 4px solid var(--tinta);
+  border-radius: 4px;
+  padding: 1.4rem 1.5rem;
+}
+.chart-container h2 {
+  font-family: var(--fonte-titulo);
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin: 0 0 1rem;
+}
+.chart-box { position: relative; height: 280px; }
 
-.charts-grid .chart-container { margin-bottom: 0; }
-.chart-container h2 { margin-top: 0; font-size: 1.1rem; }
-.chart-box { position: relative; height: 260px; }
+/* Rodapé */
+footer {
+  max-width: 1100px;
+  margin: 2rem auto 0;
+  padding: 0 1.5rem 2rem;
+  color: var(--tinta-suave);
+}
+footer a { color: var(--azul); }
+a:focus-visible { outline: 3px solid var(--ambar); outline-offset: 2px; }
