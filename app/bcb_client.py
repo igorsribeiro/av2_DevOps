@@ -1,7 +1,10 @@
 """
-Módulo compartilhado: conexão com o Postgres da Aiven e leitura da API
-de dados abertos do Banco Central (SGS). Usado por app.py, producer.py
-e consumer.py — evita duplicar a lógica de acesso a dados em cada script.
+Módulo compartilhado: conexão com o Postgres da Aiven e leitura de dados
+de fontes abertas (IBGE/SIDRA). Usado por app.py, producer.py e
+consumer.py — evita duplicar a lógica de acesso a dados em cada script.
+
+O nome do módulo (bcb_client) foi mantido para não precisar mexer nos
+outros arquivos.
 """
 
 import os
@@ -14,18 +17,19 @@ import requests
 
 DB_URL = os.environ.get("AIVEN_DB_URL")
 
+# Os códigos são ids internos nossos (usados na tabela bcb_series).
 SERIES = {
-    1006: {"name": "Taxa de desocupação (PNAD, trimestre móvel)", "unit": "%", "casas": 1,
-           "source": "ibge", "tabela": 6381, "variavel": 4099},
+    1006: {
+        "name": "Taxa de desocupação (PNAD, trimestre móvel)",
+        "unit": "%",
+        "casas": 1,
+        "source": "ibge",
+        "tabela": 6381,
+        "variavel": 4099,
+    },
 }
 POINTS_PER_SERIES = 30
 
-# Pool de conexões: a Aiven fica em outra região/rede que o Render, então
-# abrir uma conexão nova (TCP + handshake SSL) custa ~1s toda vez. Uma
-# única página do dashboard faz várias consultas (visita, cache de cada
-# série, contagem de acessos...), e abrir uma conexão nova pra cada uma
-# multiplicava esse ~1s por 7-8, deixando a página bem lenta. Com o pool,
-# as conexões são abertas uma vez e reaproveitadas entre requisições.
 _pool = None
 
 
@@ -47,15 +51,11 @@ def _get_pool():
 
 @contextmanager
 def get_connection():
-    """Pega uma conexão emprestada do pool e devolve ao sair do bloco
-    `with` — em vez de abrir/fechar uma conexão física nova toda vez."""
+    """Pega uma conexão emprestada do pool e devolve ao sair do bloco."""
     conn = _get_pool().getconn()
     try:
         yield conn
     except Exception:
-        # Se algo deu errado no meio de uma transação, desfaz antes de
-        # devolver ao pool — senão a próxima requisição que reaproveitar
-        # essa conexão herda uma transação "abortada" e falha em cascata.
         conn.rollback()
         raise
     finally:
@@ -63,17 +63,8 @@ def get_connection():
 
 
 def init_db():
-    """Cria as tabelas caso ainda não existam.
-
-    Em produção, vários workers do gunicorn chamam esta função quase ao
-    mesmo tempo na inicialização. `CREATE TABLE IF NOT EXISTS` não é
-    100% atômico entre transações concorrentes no Postgres, então dois
-    workers podem colidir tentando criar a mesma tabela ao mesmo tempo
-    (erro de "duplicate key" no catálogo interno pg_type). Isso é
-    inofensivo — só significa que outro worker já criou a tabela — então
-    apenas ignoramos esse erro específico em vez de deixar o worker
-    inteiro cair.
-    """
+    """Cria as tabelas caso ainda não existam (tolerando a corrida entre
+    workers do gunicorn na inicialização)."""
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -99,48 +90,59 @@ def init_db():
                 )
             conn.commit()
     except psycopg2.errors.DuplicateTable:
-        # Outro worker criou a tabela entre nossa checagem e nosso CREATE.
-        # Tudo bem, o objetivo (tabela existir) já foi alcançado.
         pass
     except psycopg2.errors.UniqueViolation as exc:
-        # Mesma corrida, mas manifestada como conflito no catálogo interno
-        # pg_type em vez de "table already exists". Também inofensivo.
         if "pg_type" not in str(exc):
             raise
 
 
-def fetch_series_from_bcb(series_code: int, n: int = POINTS_PER_SERIES):
-    """Busca os últimos N pontos de uma série no SGS do Banco Central.
+# ---------------------------------------------------------------------------
+# Fontes de dados
+# ---------------------------------------------------------------------------
 
-    Observação: o endpoint `/dados/ultimos/{n}` da API do BCB está
-    respondendo 400 Bad Request no momento (testado manualmente). Por
-    isso usamos aqui o endpoint padrão com `dataInicial`/`dataFinal`, que
-    funciona normalmente, e pegamos só os últimos N pontos retornados.
-    """
-    days_back = n * 3  # margem folgada: nem todo dia tem valor (fins de semana, feriados etc.)
-    today = datetime.date.today()
-    start = today - datetime.timedelta(days=days_back)
-
-    url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{series_code}/dados"
-    params = {
-        "formato": "json",
-        "dataInicial": start.strftime("%d/%m/%Y"),
-        "dataFinal": today.strftime("%d/%m/%Y"),
-    }
-    resp = requests.get(url, params=params, timeout=10)
+def _fetch_ibge(meta: dict, n: int):
+    url = (
+        f"https://servicodados.ibge.gov.br/api/v3/agregados/{meta['tabela']}"
+        f"/periodos/-{n}/variaveis/{meta['variavel']}"
+    )
+    resp = requests.get(url, params={"localidades": "N1[all]"}, timeout=15)
     resp.raise_for_status()
-    raw = resp.json()  # [{"data": "27/08/2026", "valor": "5.3521"}, ...]
-
+    serie = resp.json()[0]["resultados"][0]["series"][0]["serie"]  # {"202609": "5.6", ...}
     parsed = []
-    for item in raw:
-        ref_date = datetime.datetime.strptime(item["data"], "%d/%m/%Y").date()
-        parsed.append({"ref_date": ref_date, "value": float(item["valor"])})
+    for period, val in sorted(serie.items()):
+        try:
+            value = float(val)
+        except ValueError:  # IBGE usa "-" ou "..." quando não há dado
+            continue
+        year = int(period[:4])
+        part = int(period[4:6])
+        # trimestral: 01..04 -> primeiro mês do trimestre; mensal: usa o mês direto
+        month = (part - 1) * 3 + 1 if meta.get("freq") == "trimestral" else part
+        parsed.append({"ref_date": datetime.date(year, month, 1), "value": value})
     return parsed[-n:]
 
 
+_FETCHERS = {
+    "ibge": _fetch_ibge,
+}
+
+
+def fetch_series(series_code: int, n: int = POINTS_PER_SERIES):
+    """Busca os últimos N pontos de uma série na fonte configurada em SERIES."""
+    meta = SERIES[series_code]
+    try:
+        return _FETCHERS[meta["source"]](meta, n)
+    except (KeyError, IndexError, TypeError) as exc:
+        # normaliza respostas inesperadas para ValueError, que o app.py já trata
+        raise ValueError(f"Resposta inesperada da fonte '{meta['source']}': {exc}")
+
+
+# Alias para não precisar mexer em app.py e producer.py
+fetch_series_from_bcb = fetch_series
+
+
 def upsert_series(series_code: int, points: list):
-    """Grava (ou atualiza) pontos de uma série direto no Postgres —
-    usado tanto pelo cache do app.py quanto pelo consumer.py do Kafka."""
+    """Grava (ou atualiza) pontos de uma série direto no Postgres."""
     with get_connection() as conn:
         with conn.cursor() as cur:
             for p in points:
