@@ -102,9 +102,9 @@ def get_dashboard_data():
                 "name": meta["name"],
                 "unit": meta["unit"],
                 "latest_value": round(float(latest["value"]), meta["casas"]) if latest else None,
-                "latest_date": latest["ref_date"].strftime("%d/%m/%Y") if latest else None,
+                "latest_date": latest["ref_date"].strftime("%m/%Y") if latest else None,
                 "delta": delta,
-                "labels": [r["ref_date"].strftime("%d/%m") for r in rows],
+                "labels": [r["ref_date"].strftime("%m/%Y") for r in rows],
                 "values": [round(float(r["value"]), meta["casas"]) for r in rows],
             }
         )
