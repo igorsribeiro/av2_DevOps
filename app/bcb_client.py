@@ -14,12 +14,9 @@ import requests
 
 DB_URL = os.environ.get("AIVEN_DB_URL")
 
-# Séries do SGS/BCB — dados abertos, sem autenticação.
-# Referência completa de códigos: https://www3.bcb.gov.br/sgspub
 SERIES = {
-    1:   {"name": "Dólar comercial (venda)", "unit": "R$", "casas": 4},
-    432: {"name": "Meta Selic definida pelo Copom", "unit": "% a.a.", "casas": 2},
-    433: {"name": "IPCA - variação mensal", "unit": "%", "casas": 2},
+    1006: {"name": "Taxa de desocupação (PNAD, trimestre móvel)", "unit": "%", "casas": 1,
+           "source": "ibge", "tabela": 6381, "variavel": 4099},
 }
 POINTS_PER_SERIES = 30
 
