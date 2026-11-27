@@ -28,7 +28,6 @@
       <span class="meta">
         {% if ind.latest_date %}trimestre móvel encerrado em {{ ind.latest_date }}{% else %}sem dados ainda{% endif %}
         {% if ind.delta is not none %}
-          {# para desemprego: subir é ruim (vermelho), cair é bom (verde) #}
           · <span class="{{ 'down' if ind.delta > 0 else ('up' if ind.delta < 0 else '') }}">
             {{ '+' if ind.delta > 0 else '' }}{{ ind.delta }} p.p.
           </span>
@@ -58,7 +57,7 @@
   <footer>
     <small>
       Atualiza automaticamente a cada 60s · Fonte:
-      <a href="https://sidra.ibge.gov.br/tabela/4099" target="_blank" rel="noopener">IBGE / SIDRA, tabela 4099</a>
+      <a href="https://sidra.ibge.gov.br/tabela/6381" target="_blank" rel="noopener">IBGE / SIDRA, tabela 6381</a>
       · <a href="/api/indicators">/api/indicators</a> · <a href="/healthz">/healthz</a>
     </small>
   </footer>
@@ -70,6 +69,32 @@
     Chart.defaults.color = "#9a9ac0";
     Chart.defaults.borderColor = "#2c2f52";
 
-    indicators.forEach((ind, i) => {
-      const color = colors[i % colors.length];
-      new Chart(document.getElementById("
+    indicators.forEach(function (ind, i) {
+      var color = colors[i % colors.length];
+      new Chart(document.getElementById("chart-" + ind.code), {
+        type: "line",
+        data: {
+          labels: ind.labels,
+          datasets: [{
+            label: ind.name + " (" + ind.unit + ")",
+            data: ind.values,
+            borderColor: color,
+            backgroundColor: color + "26",
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: false } }
+        }
+      });
+    });
+
+    setTimeout(function () { location.reload(); }, 60000);
+  </script>
+</body>
+</html>
