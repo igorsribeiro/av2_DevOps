@@ -2,16 +2,18 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard — Indicadores Econômicos (Dados Abertos BCB)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — Desemprego no Brasil (PNAD Contínua / IBGE)</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
   <header>
-    <h1>📈 Indicadores Econômicos do Brasil</h1>
+    <h1>👷 Desemprego no Brasil</h1>
     <p class="subtitle">
-      Dados abertos do Banco Central (SGS) · cache renovado a cada {{ data.cache_hours }}h ·
-      persistidos em PostgreSQL gerenciado pela Aiven.io
+      Taxa de desocupação · PNAD Contínua (IBGE) · trimestre móvel ·
+      cache renovado a cada {{ data.cache_hours }}h ·
+      persistido em PostgreSQL gerenciado pela Aiven.io
     </p>
   </header>
 
@@ -24,11 +26,13 @@
         <span class="unit">{{ ind.unit }}</span>
       </span>
       <span class="meta">
-        {% if ind.latest_date %}ref. {{ ind.latest_date }}{% else %}sem dados ainda{% endif %}
+        {% if ind.latest_date %}trimestre encerrado em {{ ind.latest_date }}{% else %}sem dados ainda{% endif %}
         {% if ind.delta is not none %}
-          · <span class="{{ 'up' if ind.delta > 0 else ('down' if ind.delta < 0 else '') }}">
-            {{ "%+.2f"|format(ind.delta) }}
+          {# para desemprego: subir é ruim (vermelho), cair é bom (verde) #}
+          · <span class="{{ 'down' if ind.delta > 0 else ('up' if ind.delta < 0 else '') }}">
+            {{ '+' if ind.delta > 0 else '' }}{{ ind.delta }} p.p.
           </span>
+          vs. período anterior
         {% endif %}
       </span>
     </div>
@@ -40,49 +44,32 @@
     </div>
   </section>
 
-  <section class="chart-container">
-    <h2>Séries históricas (últimos {{ data.indicators[0].labels|length }} pontos)</h2>
-    <canvas id="indicatorsChart" height="90"></canvas>
+  <section class="charts-grid">
+    {% for ind in data.indicators %}
+    <div class="chart-container">
+      <h2>{{ ind.name }} — últimos {{ ind.labels|length }} períodos</h2>
+      <div class="chart-box">
+        <canvas id="chart-{{ ind.code }}"></canvas>
+      </div>
+    </div>
+    {% endfor %}
   </section>
 
   <footer>
     <small>
       Atualiza automaticamente a cada 60s · Fonte:
-      <a href="https://dadosabertos.bcb.gov.br/" target="_blank" rel="noopener">dadosabertos.bcb.gov.br</a>
+      <a href="https://sidra.ibge.gov.br/tabela/4099" target="_blank" rel="noopener">IBGE / SIDRA, tabela 4099</a>
       · <a href="/api/indicators">/api/indicators</a> · <a href="/healthz">/healthz</a>
     </small>
   </footer>
 
   <script>
     const indicators = {{ data.indicators | tojson }};
-    const colors = ["#4f46e5", "#16a34a", "#dc2626"];
+    const colors = ["#f87171", "#a5b4fc", "#4ade80", "#fbbf24"];
 
-    const datasets = indicators.map((ind, i) => ({
-      label: ind.name + " (" + ind.unit + ")",
-      data: ind.values,
-      borderColor: colors[i % colors.length],
-      backgroundColor: colors[i % colors.length] + "26",
-      tension: 0.3,
-      yAxisID: i === 0 ? "y" : "y" + i,
-      fill: false
-    }));
+    Chart.defaults.color = "#9a9ac0";
+    Chart.defaults.borderColor = "#2c2f52";
 
-    const ctx = document.getElementById('indicatorsChart');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: indicators[0] ? indicators[0].labels : [],
-        datasets: datasets
-      },
-      options: {
-        responsive: true,
-        interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { display: true, position: 'bottom' } },
-        scales: { y: { beginAtZero: false } }
-      }
-    });
-
-    setTimeout(() => location.reload(), 60000);
-  </script>
-</body>
-</html>
+    indicators.forEach((ind, i) => {
+      const color = colors[i % colors.length];
+      new Chart(document.getElementById("
