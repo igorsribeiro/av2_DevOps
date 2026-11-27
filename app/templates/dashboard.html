@@ -26,7 +26,7 @@
         <span class="unit">{{ ind.unit }}</span>
       </span>
       <span class="meta">
-        {% if ind.latest_date %}trimestre encerrado em {{ ind.latest_date }}{% else %}sem dados ainda{% endif %}
+        {% if ind.latest_date %}trimestre móvel encerrado em {{ ind.latest_date }}{% else %}sem dados ainda{% endif %}
         {% if ind.delta is not none %}
           {# para desemprego: subir é ruim (vermelho), cair é bom (verde) #}
           · <span class="{{ 'down' if ind.delta > 0 else ('up' if ind.delta < 0 else '') }}">
