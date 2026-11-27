@@ -47,3 +47,13 @@ th { color: #9a9ac0; font-weight: 600; }
 
 footer { color: #6b6b91; text-align: center; margin-top: 2rem; }
 footer a { color: #a5b4fc; }
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.charts-grid .chart-container { margin-bottom: 0; }
+.chart-container h2 { margin-top: 0; font-size: 1.1rem; }
+.chart-box { position: relative; height: 260px; }
